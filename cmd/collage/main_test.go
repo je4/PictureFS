@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/je4/PictureFS/v2/pkg/PictureFS"
 	"github.com/je4/PictureFS/v2/pkg/imagecollage"
+	"github.com/pkg/errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -146,6 +148,34 @@ func TestCollage(t *testing.T) {
 
 	if err := PictureFS.WalkDir(pfs, "/", func(path string, d fs.DirEntry, err error) error {
 		fmt.Printf("%s: dir: %v\n", path, d.IsDir())
+		if !d.IsDir() {
+			pngBytes, err := PictureFS.ReadFile(pfs, path)
+			if err != nil {
+				return errors.Wrapf(err, "cannot read file %s", path)
+			}
+			buf := bytes.NewBuffer(pngBytes)
+			result, format, err := image.Decode(buf)
+			if err != nil {
+				return errors.Wrapf(err, "cannot decode image %s", path)
+			}
+			fmt.Sprintf("%s is a %s", path, format)
+			dir2 := filepath.Join(dname, "out", filepath.Dir(path))
+			if err := os.MkdirAll(dir2, 0777); err != nil {
+				return errors.Wrapf(err, "cannot create directory %s", dir2)
+			}
+			outimg := filepath.Join(dir2, filepath.Base(path))
+			fDst, err := os.Create(outimg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = png.Encode(fDst, result)
+			if err != nil {
+				fDst.Close()
+				t.Fatal(err)
+			}
+			fDst.Close()
+			fmt.Printf("output image written: %s\n", outimg)
+		}
 		return nil
 	}); err != nil {
 		t.Fatalf("cannot walk directory: %v", err)

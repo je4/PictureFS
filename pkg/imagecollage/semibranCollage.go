@@ -140,8 +140,8 @@ func (sc *SemibranCollage) CreateLayout(layout Layout) (*PictureFS.Layout, error
 	for _, rect := range layout.Rects {
 		result.Images = append(result.Images, PictureFS.Rect{
 			Path:   rect.Name,
-			X:      int(rect.X + sc.border + sc.margin),
-			Y:      int(rect.Y + sc.border + sc.margin),
+			X:      int(rect.X + sc.border + sc.margin + sc.marginLeft),
+			Y:      int(rect.Y + sc.border + sc.margin + sc.marginTop),
 			Width:  int(rect.Width - 2*sc.border - 2*sc.margin),
 			Height: int(rect.Height - 2*sc.border - 2*sc.margin),
 		})

@@ -2,6 +2,7 @@ package PictureFS
 
 import (
 	"io/fs"
+	"path/filepath"
 	"time"
 )
 
@@ -15,7 +16,7 @@ type fileStat struct {
 }
 
 func (fStat *fileStat) Name() string {
-	return fStat.name
+	return filepath.Base(fStat.name)
 }
 
 func (fStat *fileStat) isSymlink() bool {

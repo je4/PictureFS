@@ -25,7 +25,7 @@ func Sub(fsys fs.FS, dir string) (fs.FS, error) {
 		return nil, errors.New(fmt.Sprintf("invalid filesystem type: %T", fsys))
 	}
 	newDir := filepath.ToSlash(filepath.Clean(filepath.Join(lfs.base, dir)))
-	if !lfs.data.hasDir(newDir) {
+	if !lfs.hasDir(newDir) {
 		return nil, errors.New(fmt.Sprintf("invalid directory: %s", newDir))
 	}
 	subFS := &FS{
@@ -72,33 +72,48 @@ func ValidPath(name string) bool {
 
 type fsData map[string][]byte
 
-func (fsd fsData) dirEntries(dir string) []string {
+func (pfs *FS) dirEntries(dir string) []string {
 	result := []string{}
-	for d, _ := range fsd {
+	dir = strings.TrimRight(dir, "/") + "/"
+	for d, _ := range pfs.data {
+		d = filepath.ToSlash(filepath.Join(pfs.base, d))
 		if strings.HasPrefix(d, dir) {
 			h := strings.TrimPrefix(d, dir)
 			parts := strings.Split(h, "/")
 			if len(parts) > 0 {
-				result = append(result, filepath.ToSlash(filepath.Clean(filepath.Join(dir, parts[0]))))
+				fp := filepath.ToSlash(filepath.Clean(filepath.Join(dir, parts[0])))
+				found := false
+				for _, h := range result {
+					if h == fp {
+						found = true
+						break
+					}
+				}
+				if !found {
+					result = append(result, fp)
+				}
 			}
 		}
 	}
 	return result
 }
 
-func (fsd fsData) hasDir(dir string) bool {
+func (pfs *FS) hasDir(dir string) bool {
 	//dir = filepath.ToSlash(filepath.Clean(dir))
-	for d, _ := range fsd {
-		if strings.HasPrefix(d, dir) && len(d) > len(dir) {
+	dir = strings.TrimRight(dir, "/") + "/"
+	for d, _ := range pfs.data {
+		d2 := filepath.ToSlash(filepath.Join(pfs.base, d))
+		if strings.HasPrefix(d2, dir) && len(d2) > len(dir) {
 			return true
 		}
 	}
 	return false
 }
 
-func (fsd fsData) hasFile(path string) bool {
-	//path = filepath.ToSlash(filepath.Clean(path))
-	_, ok := fsd[path]
+func (pfs *FS) hasFile(path string) bool {
+	path = filepath.ToSlash(filepath.Clean(path))
+
+	_, ok := pfs.data[path]
 	return ok
 }
 
@@ -174,13 +189,13 @@ func NewFS(img image.Image, layout Layout) (*FS, error) {
 }
 
 func (pfs *FS) Open(name string) (fs.File, error) {
-	fullpath := filepath.Clean(filepath.Join(pfs.base, name))
-	if !pfs.data.hasFile(fullpath) {
+	fullpath := filepath.ToSlash(filepath.Clean(filepath.Join(pfs.base, name)))
+	if !pfs.hasFile(fullpath) {
 		return nil, fs.ErrNotExist
 	}
 	return &File{
 		name: fullpath,
-		data: pfs.data,
+		fs:   pfs,
 		i:    0,
 	}, nil
 }
@@ -188,17 +203,17 @@ func (pfs *FS) Open(name string) (fs.File, error) {
 func (pfs *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	name = filepath.ToSlash(filepath.Clean(name))
 	// check could be removed, but error message is better than just empty result
-	if !pfs.data.hasDir(name) {
+	if !pfs.hasDir(name) {
 		return nil, errors.New(fmt.Sprintf("%s is not a directory", name))
 	}
-	entries := pfs.data.dirEntries(name)
+	entries := pfs.dirEntries(name)
 	// sort on filename
 	sort.Strings(entries)
 	dEntries := []fs.DirEntry{}
 	for _, p := range entries {
 		f := &File{
 			name: p,
-			data: pfs.data,
+			fs:   pfs,
 			i:    0,
 		}
 		fi, err := f.Stat()

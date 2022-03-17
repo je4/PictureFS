@@ -8,7 +8,7 @@ import (
 
 type File struct {
 	name string
-	data fsData
+	fs   *FS
 	i    int64
 }
 
@@ -19,8 +19,8 @@ func (f *File) Close() error {
 }
 
 func (f *File) Stat() (FileInfo, error) {
-	if !f.data.hasFile(f.name) {
-		if !f.data.hasDir(f.name) {
+	if !f.fs.hasFile(f.name) {
+		if !f.fs.hasDir(f.name) {
 			return nil, errors.New(fmt.Sprintf("invalid node: %s", f.name))
 		}
 		return &fileStat{
@@ -31,7 +31,7 @@ func (f *File) Stat() (FileInfo, error) {
 	}
 	return &fileStat{
 		name: f.name,
-		size: int64(len(f.data[f.name])), // hasFile makes sure, it exists,
+		size: int64(len(f.fs.data[f.name])), // hasFile makes sure, it exists,
 		dir:  false,
 	}, nil
 }
@@ -39,10 +39,10 @@ func (f *File) Stat() (FileInfo, error) {
 // Len returns the number of bytes of the unread portion of the
 // string.
 func (f *File) Len() int64 {
-	if !f.data.hasFile(f.name) {
+	if !f.fs.hasFile(f.name) {
 		return 0
 	}
-	var l int64 = int64(len(f.data[f.name]))
+	var l int64 = int64(len(f.fs.data[f.name]))
 	if f.i >= l {
 		return 0
 	}
@@ -50,20 +50,20 @@ func (f *File) Len() int64 {
 }
 
 func (f *File) Size() int64 {
-	if !f.data.hasFile(f.name) {
+	if !f.fs.hasFile(f.name) {
 		return 0
 	}
-	return int64(len(f.data[f.name]))
+	return int64(len(f.fs.data[f.name]))
 }
 
 func (f *File) Read(buf []byte) (n int, err error) {
-	if !f.data.hasFile(f.name) {
+	if !f.fs.hasFile(f.name) {
 		return 0, errors.New(fmt.Sprintf("invalid file: %s", f.name))
 	}
-	if f.i >= int64(len(f.data[f.name])) {
+	if f.i >= int64(len(f.fs.data[f.name])) {
 		return 0, io.EOF
 	}
-	n = copy(buf, f.data[f.name][f.i:])
+	n = copy(buf, f.fs.data[f.name][f.i:])
 	f.i += int64(n)
 	return
 }
@@ -74,10 +74,10 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 	if off < 0 {
 		return 0, errors.New("PictureFS.File.ReadAt: negative offset")
 	}
-	if off >= int64(len(f.data[f.name])) {
+	if off >= int64(len(f.fs.data[f.name])) {
 		return 0, io.EOF
 	}
-	n = copy(b, f.data[f.name][off:])
+	n = copy(b, f.fs.data[f.name][off:])
 	if n < len(b) {
 		err = io.EOF
 	}
@@ -86,10 +86,10 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 
 // ReadByte implements the io.ByteReader interface.
 func (f *File) ReadByte() (byte, error) {
-	if f.i >= int64(len(f.data[f.name])) {
+	if f.i >= int64(len(f.fs.data[f.name])) {
 		return 0, io.EOF
 	}
-	b := f.data[f.name][f.i]
+	b := f.fs.data[f.name][f.i]
 	f.i++
 	return b, nil
 }
@@ -103,7 +103,7 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		abs = f.i + offset
 	case io.SeekEnd:
-		abs = int64(len(f.data[f.name])) + offset
+		abs = int64(len(f.fs.data[f.name])) + offset
 	default:
 		return 0, errors.New("strings.Reader.Seek: invalid whence")
 	}
