@@ -10,6 +10,7 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type SemibranCollage struct {
@@ -53,7 +54,7 @@ func NewSemibranCollage(
 ) *SemibranCollage {
 	var sc = &SemibranCollage{
 		rects:        []Rect{},
-		basePath:     basePath,
+		basePath:     filepath.ToSlash(filepath.Clean(basePath)),
 		border:       borderWidth,
 		margin:       margin,
 		marginBottom: marginBottom,
@@ -145,6 +146,16 @@ func (sc *SemibranCollage) CreateLayout(layout Layout) (*PictureFS.Layout, error
 			Width:  int(rect.Width - 2*sc.border - 2*sc.margin),
 			Height: int(rect.Height - 2*sc.border - 2*sc.margin),
 		})
+		if strings.ToLower(filepath.Ext(rect.Name)) == ".gif" {
+			result.Images = append(result.Images, PictureFS.Rect{
+				Path:   strings.ReplaceAll(rect.Name, ".gif", ".png"),
+				X:      int(rect.X + sc.border + sc.margin + sc.marginLeft),
+				Y:      int(rect.Y + sc.border + sc.margin + sc.marginTop),
+				Width:  int(rect.Width - 2*sc.border - 2*sc.margin),
+				Height: int(rect.Height - 2*sc.border - 2*sc.margin),
+			})
+
+		}
 	}
 
 	return result, nil

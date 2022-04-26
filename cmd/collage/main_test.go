@@ -57,6 +57,22 @@ func drawline(x0, y0, x1, y1 int, col color.Color, img *image.NRGBA) {
 	}
 }
 
+func Rect(x1, y1, x2, y2, thickness int, col color.Color, img *image.NRGBA) {
+
+	for t := 0; t < thickness; t++ {
+		// draw horizontal lines
+		for x := x1; x <= x2; x++ {
+			img.Set(x, y1+t, col)
+			img.Set(x, y2-t, col)
+		}
+		// draw vertical lines
+		for y := y1; y <= y2; y++ {
+			img.Set(x1+t, y, col)
+			img.Set(x2-t, y, col)
+		}
+	}
+}
+
 func TestCollage(t *testing.T) {
 	dname, err := os.MkdirTemp("", "pictureFS")
 	if err != nil {
